@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿using AzureResourceManager.Models;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
@@ -29,6 +27,9 @@ namespace AzureResourceManager
         {
             // Add framework services.
             services.AddMvc();
+            services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
+            services.Configure<AzureADSettings>(Configuration.GetSection("AzureAD"));
+            services.AddTransient<AzureResourceManagerUtil>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -48,13 +49,14 @@ namespace AzureResourceManager
             }
 
             app.UseStaticFiles();
-
+            app.ConfigureAuthentication(Configuration);
             app.UseMvc(routes =>
             {
                 routes.MapRoute(
                     name: "default",
                     template: "{controller=Home}/{action=Index}/{id?}");
             });
+            
         }
     }
 }

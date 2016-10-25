@@ -1,4 +1,4 @@
-﻿{
+{
   "dependencies": {
     "Microsoft.AspNetCore.Diagnostics": "1.0.0",
     "Microsoft.AspNetCore.Mvc": "1.0.1",
@@ -16,7 +16,15 @@
     "Microsoft.Extensions.Logging.Console": "1.0.0",
     "Microsoft.Extensions.Logging.Debug": "1.0.0",
     "Microsoft.Extensions.Options.ConfigurationExtensions": "1.0.0",
-    "Microsoft.VisualStudio.Web.BrowserLink.Loader": "14.0.0"
+    "Microsoft.VisualStudio.Web.BrowserLink.Loader": "14.0.0",
+    "Microsoft.AspNetCore.Owin": "1.0.0",
+    "Microsoft.IdentityModel.Clients.ActiveDirectory": "3.13.5",
+    "Microsoft.AspNetCore.Authentication.Cookies": "1.0.0",
+    "Microsoft.AspNetCore.Authentication.OpenIdConnect": "1.0.0",
+    "Microsoft.IdentityModel.Protocols.OpenIdConnect": "2.0.0",
+    "Microsoft.IdentityModel.Protocols": "2.0.0",
+    "Microsoft.AspNet.WebPages": "3.2.3",
+    "WindowsAzure.Storage": "7.2.1"
   },
 
   "tools": {
