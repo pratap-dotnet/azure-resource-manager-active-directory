@@ -13,5 +13,7 @@
         public string ARMAuthorizationRoleAssignmentsAPIVersion { get;  set; }
         public string ARMAuthorizationRoleDefinitionsAPIVersion { get;  set; }
         public string TokenStorageConnectionString { get;  set; }
+        public string GraphAPIIdentifier { get; set; }
+        public string GraphAPIVersion { get; set; }
     }
 }

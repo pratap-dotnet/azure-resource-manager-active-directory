@@ -15,10 +15,13 @@ namespace AzureResourceManager
     public class AzureResourceManagerUtil
     {
         private readonly AzureADSettings azureADSettings;
+        private readonly SignedInUserService signedInUserService;
 
-        public AzureResourceManagerUtil(IOptions<AzureADSettings> azureAdSettings)
+        public AzureResourceManagerUtil(IOptions<AzureADSettings> azureAdSettings,
+            SignedInUserService signedInUserService)
         {
             this.azureADSettings = azureAdSettings.Value;
+            this.signedInUserService = signedInUserService;
         }
         public async Task<string> GetDirectoryForSubscription(string subscriptionId)
         {
@@ -48,7 +51,7 @@ namespace AzureResourceManager
         {
             bool ret = false;
 
-            string signedInUserUniqueName = ClaimsPrincipal.Current.FindFirst(ClaimTypes.Name).Value.Split('#')[ClaimsPrincipal.Current.FindFirst(ClaimTypes.Name).Value.Split('#').Length - 1];
+            string signedInUserUniqueName = signedInUserService.GetSignedInUserName();
 
             // Aquire Access Token to call Azure Resource Manager
             ClientCredential credential = new ClientCredential(azureADSettings.ClientId,azureADSettings.ClientSecret);
@@ -170,8 +173,7 @@ namespace AzureResourceManager
         }
         public async Task GrantRoleToServicePrincipalOnSubscription(string objectId, string subscriptionId, string directoryId)
         {
-            string signedInUserUniqueName = ClaimsPrincipal.Current.FindFirst(ClaimTypes.Name).Value.Split('#')[ClaimsPrincipal.Current.FindFirst(ClaimTypes.Name).Value.Split('#').Length - 1];
-
+            string signedInUserUniqueName = signedInUserService.GetSignedInUserName();
             // Aquire Access Token to call Azure Resource Manager
             ClientCredential credential = new ClientCredential(azureADSettings.ClientId,azureADSettings.ClientSecret);
             // initialize AuthenticationContext with the token cache of the currently signed in user, as kept in the app's EF DB
@@ -246,8 +248,7 @@ namespace AzureResourceManager
         private async Task<string> GetRoleId(string roleName, string subscriptionId, string directoryId)
         {
             string roleId = null;
-            string signedInUserUniqueName = ClaimsPrincipal.Current.FindFirst(ClaimTypes.Name).Value.Split('#')[ClaimsPrincipal.Current.FindFirst(ClaimTypes.Name).Value.Split('#').Length - 1];
-
+            string signedInUserUniqueName = signedInUserService.GetSignedInUserName();
             // Aquire Access Token to call Azure Resource Manager
             ClientCredential credential = new ClientCredential(azureADSettings.ClientId,azureADSettings.ClientSecret);
             // initialize AuthenticationContext with the token cache of the currently signed in user, as kept in the app's EF DB
@@ -289,6 +290,39 @@ namespace AzureResourceManager
             }
 
             return roleId;
+        }
+
+        internal async Task<string> GetObjectIdOfServicePrincipalInDirectory(string directoryId, string applicationId)
+        {
+            string objectId = null;
+
+            // Aquire App Only Access Token to call Azure Resource Manager - Client Credential OAuth Flow
+            ClientCredential credential = new ClientCredential(azureADSettings.ClientId ,azureADSettings.ClientSecret);
+            AuthenticationContext authContext = new AuthenticationContext(
+                String.Format(azureADSettings.Authority, directoryId));
+            AuthenticationResult result = await authContext.AcquireTokenAsync(azureADSettings.GraphAPIIdentifier, credential);
+
+            // Get a list of Organizations of which the user is a member
+            string requestUrl = string.Format("{0}{1}/servicePrincipals?api-version={2}&$filter=appId eq '{3}'",
+                azureADSettings.GraphAPIIdentifier, directoryId,
+                azureADSettings.GraphAPIVersion, applicationId);
+
+            // Make the GET request
+            HttpClient client = new HttpClient();
+            HttpRequestMessage request = new HttpRequestMessage(HttpMethod.Get, requestUrl);
+            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+            HttpResponseMessage response = client.SendAsync(request).Result;
+
+            // Endpoint should return JSON with one or none serviePrincipal object
+            if (response.IsSuccessStatusCode)
+            {
+                string responseContent = response.Content.ReadAsStringAsync().Result;
+                var servicePrincipalResult = (Json.Decode(responseContent)).value;
+                if (servicePrincipalResult != null && servicePrincipalResult.Length > 0)
+                    objectId = servicePrincipalResult[0].objectId;
+            }
+
+            return objectId;
         }
     }
 }

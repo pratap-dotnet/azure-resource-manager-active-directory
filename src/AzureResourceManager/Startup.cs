@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -30,6 +31,9 @@ namespace AzureResourceManager
             services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
             services.Configure<AzureADSettings>(Configuration.GetSection("AzureAD"));
             services.AddTransient<AzureResourceManagerUtil>();
+            services.AddTransient<ISubscriptionRepository, SubscriptionTableRepository>();
+            services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+            services.AddTransient<SignedInUserService>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

@@ -16,22 +16,32 @@ namespace AzureResourceManager.Controllers
     {
         private readonly AzureADSettings azureADSettings;
         private readonly AzureResourceManagerUtil resourceManagerUtility;
+        private readonly ISubscriptionRepository subscriptionRepository;
+        private readonly SignedInUserService signedInUserService;
 
-        public HomeController(IOptions<AzureADSettings> settings, AzureResourceManagerUtil resourceManagerUtilty)
+        public HomeController(IOptions<AzureADSettings> settings, AzureResourceManagerUtil resourceManagerUtilty,
+            ISubscriptionRepository subscriptionRepository, SignedInUserService signedInUserService)
         {
             azureADSettings = settings.Value;
             this.resourceManagerUtility = resourceManagerUtilty;
+            this.subscriptionRepository = subscriptionRepository;
+            this.signedInUserService = signedInUserService;
         }
 
         public async Task<IActionResult> Index()
         {
             ViewModel model = null;
-            if (ClaimsPrincipal.Current.Identity.IsAuthenticated)
+            if (User.Identity.IsAuthenticated)
             {
-                string userId = ClaimsPrincipal.Current.FindFirst(ClaimTypes.Name).Value;
+                string userId = signedInUserService.GetSignedInUserName();
                 model = new ViewModel();
-                model.ConnectedSubscriptions = new List<Subscription>();
-                
+                model.ConnectedSubscriptions = subscriptionRepository.GetAllSubscriptionsForUser(userId).ToList();
+                foreach (var connectedSubscription in model.ConnectedSubscriptions)
+                {
+                    bool servicePrincipalHasReadAccessToSubscription = await resourceManagerUtility.
+                        DoesServicePrincipalHaveReadAccessToSubscription(connectedSubscription.Id, connectedSubscription.DirectoryId);
+                    connectedSubscription.AzureAccessNeedsToBeRepaired = !servicePrincipalHasReadAccessToSubscription;
+                }
             }
 
             return View(model);
@@ -51,7 +61,6 @@ namespace AzureResourceManager.Controllers
                     openIdHandler.SetTenantAuthority(string.Format(azureADSettings.Authority, directoryId));
                     
                     Dictionary<string, string> dict = new Dictionary<string, string>();
-                    dict["Authority"] = string.Format(azureADSettings.Authority + "OAuth2/Authorize", directoryId);
                     dict["prompt"] = "select_account";
 
                     await HttpContext.Authentication.ChallengeAsync(OpenIdConnectDefaults.AuthenticationScheme,
@@ -60,7 +69,7 @@ namespace AzureResourceManager.Controllers
                 else
                 {
                     string objectIdOfCloudSenseServicePrincipalInDirectory = await
-                        AzureADGraphAPIUtil.GetObjectIdOfServicePrincipalInDirectory(directoryId, azureADSettings.ClientId);
+                        resourceManagerUtility.GetObjectIdOfServicePrincipalInDirectory(directoryId, azureADSettings.ClientId);
 
                     await resourceManagerUtility.GrantRoleToServicePrincipalOnSubscription
                         (objectIdOfCloudSenseServicePrincipalInDirectory, subscriptionId, directoryId);
@@ -69,16 +78,11 @@ namespace AzureResourceManager.Controllers
                     {
                         Id = subscriptionId,
                         DirectoryId = directoryId,
-                        ConnectedBy = ClaimsPrincipal.Current.FindFirst(ClaimTypes.Name).Value,
+                        ConnectedBy = signedInUserService.GetSignedInUserName(),
                         ConnectedOn = DateTime.Now
                     };
 
-                    //if (db.Subscriptions.Find(s.Id) == null)
-                    //{
-                    //    db.Subscriptions.Add(s);
-                    //    db.SaveChanges();
-                    //}
-
+                    subscriptionRepository.AddSubscription(s);
                     Response.Redirect(this.Url.Action("Index", "Home"));
                 }
             }
@@ -90,17 +94,16 @@ namespace AzureResourceManager.Controllers
             string directoryId = await resourceManagerUtility.GetDirectoryForSubscription(subscriptionId);
 
             string objectIdOfCloudSenseServicePrincipalInDirectory = await
-                AzureADGraphAPIUtil.GetObjectIdOfServicePrincipalInDirectory(directoryId, azureADSettings.ClientId);
+                resourceManagerUtility.GetObjectIdOfServicePrincipalInDirectory(directoryId, azureADSettings.ClientId);
 
             await resourceManagerUtility.RevokeRoleFromServicePrincipalOnSubscription
                 (objectIdOfCloudSenseServicePrincipalInDirectory, subscriptionId, directoryId);
 
-            //Subscription s = db.Subscriptions.Find(subscriptionId);
-            //if (s != null)
-            //{
-            //    db.Subscriptions.Remove(s);
-            //    db.SaveChanges();
-            //}
+            Subscription s = subscriptionRepository.GetByUserAndId(signedInUserService.GetSignedInUserName(), subscriptionId);
+            if (s != null)
+            {
+                subscriptionRepository.Remove(s);
+            }
 
             Response.Redirect(this.Url.Action("Index", "Home"));
         }
@@ -109,7 +112,7 @@ namespace AzureResourceManager.Controllers
             string directoryId = await resourceManagerUtility.GetDirectoryForSubscription(subscriptionId);
 
             string objectIdOfCloudSenseServicePrincipalInDirectory = await
-                AzureADGraphAPIUtil.GetObjectIdOfServicePrincipalInDirectory(directoryId, azureADSettings.ClientId);
+                resourceManagerUtility.GetObjectIdOfServicePrincipalInDirectory(directoryId, azureADSettings.ClientId);
 
             await resourceManagerUtility.RevokeRoleFromServicePrincipalOnSubscription
                 (objectIdOfCloudSenseServicePrincipalInDirectory, subscriptionId, directoryId);
@@ -118,5 +121,6 @@ namespace AzureResourceManager.Controllers
 
             Response.Redirect(this.Url.Action("Index", "Home"));
         }
+        
     }
 }
