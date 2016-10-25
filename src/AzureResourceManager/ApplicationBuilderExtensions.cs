@@ -3,7 +3,6 @@ using System.Security.Claims;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Options;
@@ -29,7 +28,7 @@ namespace AzureResourceManager
                 ClientId = clientId,
                 Authority = authority,
                 ResponseType = OpenIdConnectResponseType.CodeIdToken,
-                CallbackPath = @"/home/index",
+                CallbackPath = @"/home/index", //Ensure this the Uri added as reply address in the Azure AD application Configure page
                 TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
                 {
                     ValidateIssuer = false
@@ -52,7 +51,6 @@ namespace AzureResourceManager
                     {
                         var credential = new ClientCredential(clientId, clientSecret);
                         string tenantId = context.Ticket.Principal.FindFirst("http://schemas.microsoft.com/identity/claims/tenantid").Value;
-
                         string signedInUserUniqueName = context.Ticket.Principal.FindFirst(ClaimTypes.Name).Value.Split('#')
                             [context.Ticket.Principal.FindFirst(ClaimTypes.Name).Value.Split('#').Length - 1];
 
@@ -66,6 +64,7 @@ namespace AzureResourceManager
                         
                         var authResult = await authenticationContext.AcquireTokenByAuthorizationCodeAsync(context.TokenEndpointRequest.Code,
                             new Uri(currentUri), credential, azureResourceManagerIdentifier);
+                        //this line is very important else the application keeps throwing up 400 BadRequest
                         context.HandleCodeRedemption();
                     },
                     OnTokenValidated = (context) =>
@@ -75,14 +74,6 @@ namespace AzureResourceManager
                         {
                             throw new System.IdentityModel.Tokens.SecurityTokenValidationException();
                         }
-                        return Task.FromResult(0);
-                    },
-                    OnTokenResponseReceived = (context) =>
-                    {
-                        return Task.FromResult(0);
-                    },
-                    OnAuthenticationFailed = (context) =>
-                    {
                         return Task.FromResult(0);
                     }
                 }

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 
 namespace AzureResourceManager
 {
+    //Service used to access name claim from the Current HttpContext
     public class SignedInUserService
     {
         private readonly IHttpContextAccessor httpContextAccessor;

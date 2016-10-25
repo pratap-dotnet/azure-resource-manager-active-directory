@@ -12,6 +12,8 @@ using Microsoft.IdentityModel.Clients.ActiveDirectory;
 
 namespace AzureResourceManager
 {
+    //Utility class directly lifted from http://github.com/dushyantgill/VipSwapper/tree/master/CloudSense 
+    //Allows to connect and disconnect subscription using the tokens
     public class AzureResourceManagerUtil
     {
         private readonly AzureADSettings azureADSettings;

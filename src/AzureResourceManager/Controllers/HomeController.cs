@@ -51,11 +51,12 @@ namespace AzureResourceManager.Controllers
         {
             string directoryId = await resourceManagerUtility.GetDirectoryForSubscription(subscriptionId);
 
-            if (!String.IsNullOrEmpty(directoryId))
+            if (!string.IsNullOrEmpty(directoryId))
             {
                 if (!User.Identity.IsAuthenticated || !directoryId.Equals((User.Identity as ClaimsIdentity).FindFirst
                     ("http://schemas.microsoft.com/identity/claims/tenantid").Value))
                 {
+                    //This is where the actual magic of changing authentication authority happens
                     var openIdFeature = HttpContext.Features[typeof(IHttpAuthenticationFeature)] as IHttpAuthenticationFeature;
                     var openIdHandler = openIdFeature.Handler as MultiTenantOpenIdConnectHandler;
                     openIdHandler.SetTenantAuthority(string.Format(azureADSettings.Authority, directoryId));

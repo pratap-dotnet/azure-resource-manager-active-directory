@@ -10,6 +10,7 @@ using Microsoft.Extensions.Options;
 
 namespace AzureResourceManager
 {
+    //Authentication middleware to create Authentication handler
     public class MultiTenantOpenIdConnectMiddleware : OpenIdConnectMiddleware
     {
         public MultiTenantOpenIdConnectMiddleware(

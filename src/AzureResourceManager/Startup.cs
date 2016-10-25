@@ -29,6 +29,7 @@ namespace AzureResourceManager
             // Add framework services.
             services.AddMvc();
             services.AddAuthentication(sharedOptions => sharedOptions.SignInScheme = CookieAuthenticationDefaults.AuthenticationScheme);
+            //Add strongly typed Settings 
             services.Configure<AzureADSettings>(Configuration.GetSection("AzureAD"));
             services.AddTransient<AzureResourceManagerUtil>();
             services.AddTransient<ISubscriptionRepository, SubscriptionTableRepository>();
